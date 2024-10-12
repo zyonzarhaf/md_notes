@@ -2,6 +2,47 @@
 
 ## CakePHP at a Glance
 
+### The Entry Point of the App
+
+The application entry point is webroot/index.php. When a request reaches the app URL, the web server (Apache or Nginx) routes the request to the index.php file. This is what the file looks like:
+
+```php
+<?php
+
+require dirname(__DIR__) . '/config/requirements.php';
+
+if (PHP_SAPI === 'cli-server') {
+    $_SERVER['PHP_SELF'] = '/' . basename(__FILE__);
+
+    $url = parse_url(urldecode($_SERVER['REQUEST_URI']));
+    $file = __DIR__ . $url['path'];
+    if (strpos($url['path'], '..') === false && strpos($url['path'], '.') !== false && is_file($file)) {
+        return false;
+    }
+}
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+use App\Application;
+use Cake\Http\Server;
+
+$server = new Server(new Application(dirname(__DIR__) . '/config'));
+
+$server->emit($server->run());
+
+```
+
+Basically, this guy is using 'basename()', 'dirname()', __FILE__, __DIR__, an instance of the 'Server' class, and an instance of the 'Application' class to:
+
+1. call the autoload routine from the full path to '../vendor/autoload.php', allowing the application to use all the dependencies defined in the composer.json file.
+
+1. import the 'Application' class from the app namespace.
+
+1. import the 'Server' class from the app namespace.
+
+1. instantiate a server, while also passing in an application instance, which then takes the full path to '../config' directory.
+
+1. call the appropriate 'Server' methods to instantiate a request object (internally, cakephp uses the built-in global variables to achieve this) and a response object.
+
 ### The Model Layer
 
 The **Model layer** represents the part of the app that implements the business logic. It is responsible for: **retrieving data, converting data data, validating data, associating data, and other tasks related to handling data.** 
@@ -45,18 +86,214 @@ The **View layer** renders a presentation of modeled data. By gaining access to 
 <?php
 
 <?php foreach ($resultset as $row): ?>
-    <li class="user">
-        <?= $this->element('user_info', ['user' => $user]) ?>
-    </li>
+<li class="user">
+    <?= $this->element('user_info', ['user' => $user]) ?>
+</li>
 <? endforeach; ?>
 
 ```
 
-### The Controller layer
+The AppView is the default view class, and it can be used to load presentation helpers that will be used for every view rendered in the app. Example: 
 
-The **Controller layer** handles http requests and send http responses, but first it **delegates tasks to the other two layers**. It waits for petitions from clients, checks their validity according to authentication or authorization rules, delegates data fetching or processing to the model, selects the type of presentation data that the clients are accepting, and finally delegates the rendering process to the View layer. 
+```php
 
-In the example below, the controller (literally, an instance of the 'Controller' class) first access its default table through a magic get method. Then, it calls the 'newEmptyEntity()' method to return an EntityInterface object, which takes the data from the http post request through the 'patchEntity()' method.
+<?php
+
+namespace App\View;
+
+use Cake\View\View;
+
+class AppView extends View
+{
+    public function initialize(): void
+    {
+        $this->addHelper('MyUtils');
+    }
+}
+
+```
+
+The View layer is not only used to render HTML for browser-based clients. It can also reply with JSON, CSV, XML, and PDF.
+
+This layer consists of five main components: templates, elements, layouts, helpers, and cells. Templates are the part of the page that is unique to a given controller and action. Elements are reusable bits of view code. Layouts are presentational code that wraps other interfaces in the app. Helpers encapsulate view logic. Finally, cells provide mini controller-like features for creating self contained UI components.
+
+As already mentioned, the template gains access to the data when its corresponding controller calls the 'set()' method with the desired data. However, templates also have a 'set()' method. By calling it, this layer passes the variables to the layout and to the elements that will be rendered later.
+
+#### View Blocks
+
+One of the features provided by the 'AppView' class is the view block. A view block is a code block that can be defined somewhere in src/template/* and then imported somewhere else, typically somewhere in src/template/layout/*. 
+
+A block can be defined either as a capturing block, or by direct assignment.
+
+Example of a capturing block:
+
+```php
+<?php
+// In src/template/Articles/index.php
+
+$this->start('scriptBottom');
+<script>
+  $(function() {
+    //Initialize Select2 Elements
+    $('.search-select, .select2').select2({
+      "language": "pt-BR"
+    });
+
+    $('.open-box-filter').on('click', function(e) {
+      $('.box-filter').slideToggle();
+    });
+  });
+</script>
+$this->end(); 
+
+// Somewhere in src/template/layout/
+
+<?php
+$this->fetch('scriptBottom');
+?>
+
+```
+
+Example of a direct assignment:
+
+```php
+<?php
+// In src/template/Articles/index.php
+$this->assign('title', 'Dashboard');
+
+// Somewhere in src/template/layout/
+$this->fetch('title');
+
+// Also, it's possible to set a default value, like:
+$this->fetch('title', 'Default Title');
+
+```
+As demonstrated, capturing blocks are useful for multiple lines of code. Direct assignment, on the other hand, is more appropriate for one liners or simple values.
+
+However, the fetching part is the same for both cases: you define a thing somewhere and fetch it somewhere else.
+
+#### Elements
+
+another way to get data outside the template is by creating an element. elements are reusable pieces of presentation code that can be shared between different templates. they are located at src/template/element. you can build your own folder structure within this location to better organize the components. example: 
+
+```php
+<?php
+// in src/template/element/someentity/common_select.ctp
+$categorias = [
+    'categoria 1' => 'categoria 1',
+    'categoria 2' => 'categoria 2'
+];
+
+echo $this->form->control('categorias', [
+    'label' => 'tipo:',
+    'options' => $categorias,
+    'empty' => '(selecione uma categoria)'
+]);
+
+
+// in src/template/someentity/add.ctp
+<?php echo $this->form->create(); ?>
+<div>
+    <div>
+        <?php
+        echo $this->element('someentity/common_select');
+        ?>
+    </div>
+</div>
+<!-- /.box-body -->
+<?php echo $this->form->submit(__('add category')); ?>
+<?php echo $this->form->end(); ?>
+</div>
+
+```
+
+#### helpers
+
+##### form
+
+the formhelper is used to create html forms. it automatically renders a given set of input controllers through context.
+
+the context is the first parameter it takes. it can be a complete orm entity, orm resultset, form instance, array containing the 'schema key', array of metadatada, or null. validation will also be automatically applied.
+
+the second parameter is used to define things like the http request method, the url to request from, encoding, enctype, among other options.
+
+by default, the form makes a 'post' request to the same url it matches.
+
+example of a simple form:
+
+```php
+<?php
+
+<?= $this->form->create($department) ?>
+<fieldset>
+    <legend><?= __('add a department') ?></legend>
+    <?php
+    echo $this->form->control('department');
+    ?>
+</fieldset>
+<?= $this->form->button(__('submit')) ?>
+<?= $this->form->end() ?>
+
+```
+
+#### Html
+
+the html helper is a more general-purpose helper that helps creating html elements. [todo].
+
+This helper also ties into view blocks by providing the 'script()', 'css()', and 'meta()' methods, which take the basename of a file and an array of options. The array of options takes a 'block' key, which holds the value describing the name of the block that will be captured somewhere else. Example:
+
+```php
+<?php
+
+// in src/template/Articles/index.php
+
+$this->Html->script('carousel', ['block' => 'scriptBottom']);
+
+// Somewhere in src/template/layout
+$this->fetch('scriptBottom');
+
+```
+
+CakePHP will automatically look for the file in webroot/js/carousel.js.
+
+### the controller layer
+
+the **controller layer** handles http requests and send http responses, but first it **delegates tasks to the other two layers**. it waits for petitions from clients, checks their validity according to authentication or authorization rules, delegates data fetching or processing to the model, selects the type of presentation data that the clients are accepting, and finally delegates the rendering process to the view layer. 
+
+this is what a controller typically looks like:
+
+```php
+<?php
+
+class userscontroller extends appcontroller
+{
+    public function initialize(): void
+    {
+        parent::initialize();
+
+        // setup components that are needed across multiple actions
+        // configure middlweare specific to the controller
+        // setup logic that should run for every action in the controller
+        // lifecycle management: initializing state
+
+    }
+
+    public function index()
+    {
+
+    }
+
+    public function add()
+    {
+
+    }
+}
+
+```
+
+some methods, such as 'index()', 'add()', 'edit()', among others, are automatically generated as boilerplate code by the bin/cake bake command. the 'initialize()' method can be very useful for initializing state and passing in common data and behavior to the controller actions, which in turn can pass data to the corresponding templates.
+
+in the example below, the controller (literally, an instance of the 'controller' class) first access its default table through a magic get method. then, it calls the 'newemptyentity()' method to return an entityinterface object, which takes the data from the http post request through the 'patchentity()' method.
 
 It then calls the 'save()' method from the Table object, by passing the recently created row. If 'save()' returns true, then all went ok and the 'Users' table now includes a new user.
 
@@ -81,6 +318,43 @@ public function add()
 }
 
 ```
+
+#### Components
+
+Components are reusable and plugable packages. They come in three flavors: built-in core components, downloadable and installable components, and custom components. Components main purpose is to share common logic between controllers, keeping them clean. They are usually loaded via the 'loadComponent()' controller method within a given controller:
+
+```php
+<?php
+
+class PostsController extends AppController
+{
+    public function initialize()
+    {
+        parent::initialize();
+
+        $this->loadComponent('FormProtection', [
+            'unlockedActions' => ['index'],
+        ]);
+
+        $this->loadComponent('Flash');
+    }
+}
+
+```
+
+Alternatively, the same thing could be done through the 'beforeFilter()' controller method:
+
+```php
+<?php
+
+public function beforeFilter(EventInterface $event)
+{
+    $this->FormProtection->setConfig('unlockedActions', ['index']);
+}
+
+```
+
+The main difference between these two is the component timing of execution: the first approach yields in the component being loaded before any action is executed, and for every request to the controller; the second approach allows to restrict the execution of a given component to a specific action.
 
 ### The Request Cycle
 
@@ -128,7 +402,7 @@ Columns with more than one word are also snake cased, but they can be kept in th
 
 **Foreign keys** in 'hasMany', 'belongsTo', and 'hasOne' relationships are recognized **by default** as the singular name of the related table followed by '_id'. For example:if a Users table 'hasMany' Articles -- in a 'hasMany' relationship, the fk is in the related table --, the Articles table will refer to the User table via 'user_id'.
 
-For 'belongsToMany' relationships, which describe associative tables, the associative table must be named after the tables it connects, with both names pluralized and sorted alphabetically, e.g. articles_tags.
+For 'belongsToMany' relationships, which describe associative tables, the associative table must be named after the tables it connects, with both names pluralized and sorted alphabetically, e.g. articles_tags. **To avoid conflicts** the other tables should not contain related foreign keys, **only the associative table**. Also to avoid conflicts, the associative table must contain a single primary key, typically one of the foreing keys.
 
 ### Model Conventions
 
@@ -139,3 +413,179 @@ Entity class names, on the other hand, are singular, pascal cased and have no su
 ### View Conventions
 
 View templates files are named after the controller functions they display, but are all kept snake cased, e.g. ArticlesController::viewAll() will work with the view template templates/Articles/view_all.php.
+
+### Application
+
+The entry point of the app can be found at /src/Application.php. It provides a common location to configure plugins, middleware, console commands and routes.
+
+### Authentication
+
+Authentication is the process of verifying a user's identity. According to the official docs, this is the typica authentication workflow:
+
+1. $ composer require cakephp/authentication.
+
+1. Load the authentication plugin inside src/Application.php.
+
+1. Add the class imports.
+
+1. Add AuthenticationServiceProviderInterface to the implemented interfaces on the app entry point class.
+
+1. Add a new middleware to the middleware() method.
+
+1. The new middleware will call a hook method that allows the app to define a specific auth service. Define the hook method.
+
+1. Add the authentication component in src/AppController.php
+
+1. Optionally allow specific unauthenticated rotes in specific controllers.
+
+1. Add login and logout actions to src/Controllers/UsersController.php
+
+1. Add templates.
+
+### Authorization
+
+Authorization is the process of defining who is allowed to access what. Follows a similar workflow compared to the auth plugin. 
+
+
+### Dependencias do bridfix
+
+#### Access Control List (ACL) -- Older versions only
+
+##### Definition
+
+Access Control Lists are a more granular approach to authorization. "The ACL system allows developers to define complex permission structures, enabling fine-tuned control over who can access what within an application. Permissions are typically stored in a database and can be managed through CakePHP's built-in models and console commands".
+
+ACLs consist of two main components: acos (Access Control Objects) and 'aros' (Access Request Objects). Both 'acos' and 'aros' objects are stored in the database, and they are linked through an 'aros_acos' joint table. This is what they look like:
+
+```sql
+
+CREATE TABLE `acos` (
+`id` int(11) NOT NULL,
+`parent_id` int(11) DEFAULT NULL,
+`model` varchar(255) DEFAULT NULL,
+`foreign_key` int(11) DEFAULT NULL,
+`alias` varchar(255) DEFAULT NULL,
+`lft` int(11) DEFAULT NULL,
+`rght` int(11) DEFAULT NULL
+)
+
+
+CREATE TABLE `aros` (
+`id` int(11) NOT NULL,
+`parent_id` int(11) DEFAULT NULL,
+`model` varchar(255) DEFAULT NULL,
+`foreign_key` int(11) DEFAULT NULL,
+`alias` varchar(255) DEFAULT NULL,
+`lft` int(11) DEFAULT NULL,
+`rght` int(11) DEFAULT NULL
+)
+
+CREATE TABLE `aros_acos` (
+`id` int(11) NOT NULL,
+`aro_id` int(11) NOT NULL,
+`aco_id` int(11) NOT NULL,
+`_create` varchar(2) NOT NULL DEFAULT '0',
+`_read` varchar(2) NOT NULL DEFAULT '0',
+`_update` varchar(2) NOT NULL DEFAULT '0',
+`_delete` varchar(2) NOT NULL DEFAULT '0'
+)
+
+```
+
+The 'id' is the primary key used to identify a specific row in the 'acos' or 'aros' table. The 'parent_id' references the parent ACO, establishing a hierarchy; 'alias' is the name of the resource (e.g., controller or action). The 'aros_acos' table is an associative table that links both 'acos' and 'aros' in a many to many relationship.
+
+##### Creating ACOs and AROs
+
+These tables can be initially created through `bin/cake Migrations.migrations migrate -p Acl`.
+
+Now, for specific rows within the 'aros' table, the Acl plugin goes through each table within src/Model and looks for an added behavior (requester), like this:
+
+```php
+<?php
+
+public function initialize(array $config)
+{
+    parent::initialize($config);
+
+    // Other method calls
+
+    $this->addBehavior('Acl.Acl', ['type' => 'requester']);
+
+    // Table relationships
+}
+
+```
+
+For specific rows within the 'acos' table, the plugin simply scans the whole src/Controller folder and create an entry for each specific action and controller.
+
+The entries are generated through the `bin/cake acl_extras aco_sync` command.
+
+##### Configuring Permissions
+
+Permissions are granted or denied through shell commands: 
+
+```sh
+
+bin/cake acl grant Groups.1 controllers
+bin/cake acl deny  Groups.2  controllers
+bin/cake acl grant Groups.2 controllers/Posts
+
+```
+
+In this example, members of the group id 1 were grant the permission to everything; members of the group id 2 were denied everything; members of the same group were grant the permission to every action in controllers/Posts.
+
+Each command will yield in a new entry in the 'aros_acos' table. Then, inside the app, permissions can be checked through the 'check()' method.
+
+#### Search
+
+Creates paginate-able filters for a CakePHP application. Install through composer and then run `bin/cake plugin load Search` to load the plugin in src/Application.php. After that:
+
+1. Attach the Search behavior to the desired table class:
+
+```php
+<?php
+
+public function initialize(array $config): void
+{
+    parent::initialize($config);
+
+    $this->addBehavior('Search.Search');
+}
+
+```
+
+1. Then, call the 'searchManager()' method to return a search manager instance, and chain all the desired filters in it through the add() method. This method takes the name of the field to search for, the name of the filter to be used (using the dot notation, e.g. 'Search.Like'), and an associative array of options to the specific filter. All filters support [the following options](https://github.com/FriendsOfCake/search/blob/master/docs/filters-and-examples.md#options).
+
+```php
+<?php
+
+public function initialize(array $config): void
+{
+    parent::initialize($config);
+
+    $this->addBehavior('Search.Search');
+    $this->searchManager()
+        ->add('fieldName', 'Filter.Name', [
+            // Array of filter specific options
+        ])
+        ->add()
+        ->add()
+        ->add()
+        ->add()
+}
+
+```
+
+### CakePHP AdminLTE Theme
+
+CakePHP plugin to integrate the AdminLTE theme into the application, compatible with CakePHP 4.X. It provides a clean an responsive admin interface, leveraging the popular AdminLTE templates.
+
+How to use it:
+
+1. Require the plugin via composer.
+
+1. Enable the plugin in src/Application.php.
+
+1. Set the theme in src/Controller/AppController.php.
+
+The typical workflow to integrate the theme into the application is to simply generate all the necessary files through normal `bin/cake bake` commands, and then overwrite them with the `bin/cake bake all <TableNames> --theme AdminLTE` command, where 'TableNames' is the table in the database, pluralized and pascal cased (to follow CakePHP naming convention).
