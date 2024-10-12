@@ -581,3 +581,34 @@ How to use it:
 1. Set the theme in src/Controller/AppController.php.
 
 The typical workflow to integrate the theme into the application is to simply generate all the necessary files through normal `bin/cake bake` commands, and then overwrite them with the `bin/cake bake all <TableNames> --theme AdminLTE` command, where 'TableNames' is the table in the database, pluralized and pascal cased (to follow CakePHP naming convention).
+
+## Console Commands
+
+CakePHP comes with an executable file in the bin directory called 'cake'. This file is used to run console commands. To list out all available commands you run `bin/cake` with no arguments.
+
+After listing out the available commands, usually running `bin/cake [command name] ----help` will print a list of the arguments and options a given command expects.
+
+## Debugging
+
+Debugging is typically done through the 'debug()' and the 'dd()' methods, as long as the 'DEBUG' environment variable is set to true in config/app.php:
+
+```php
+<?php
+
+return [
+    /*
+     * Debug Level:
+     *
+     * Production Mode:
+     * false: No error messages, errors, or warnings shown.
+     *
+     * Development Mode:
+     * true: Errors and warnings shown.
+     */
+    'debug' => filter_var(env('DEBUG', true), FILTER_VALIDATE_BOOLEAN),
+// Rest of the code
+];
+
+```
+
+By simply calling 'debug()' and passing a variable, CakePHP will be able to render both the template and whatever is in the variable you passed. On the other hand, 'dd()'will render what's in the variable and die, meaning the control flow will simply stop at the line where the method first got called.
