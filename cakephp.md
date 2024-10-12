@@ -1,8 +1,6 @@
 # Notes on CakePHP
 
-## CakePHP at a Glance
-
-### The Entry Point of the App
+## The Entry Point of the App
 
 The application entry point is webroot/index.php. When a request reaches the app URL, the web server (Apache or Nginx) routes the request to the index.php file. This is what the file looks like:
 
@@ -43,7 +41,7 @@ Basically, this guy is using 'basename()', 'dirname()', __FILE__, __DIR__, an in
 
 1. call the appropriate 'Server' methods to instantiate a request object (internally, cakephp uses the built-in global variables to achieve this) and a response object.
 
-### The Model Layer
+## The Model Layer
 
 The **Model layer** represents the part of the app that implements the business logic. It is responsible for: **retrieving data, converting data data, validating data, associating data, and other tasks related to handling data.** 
 
@@ -78,7 +76,7 @@ $users->save($user);
 
 ```
 
-### The View Layer
+## The View Layer
 
 The **View layer** renders a presentation of modeled data. By gaining access to an iterable object that represents a given dataset, we wrap the data in html elements:
 
@@ -119,7 +117,7 @@ This layer consists of five main components: templates, elements, layouts, helpe
 
 As already mentioned, the template gains access to the data when its corresponding controller calls the 'set()' method with the desired data. However, templates also have a 'set()' method. By calling it, this layer passes the variables to the layout and to the elements that will be rendered later.
 
-#### View Blocks
+### View Blocks
 
 One of the features provided by the 'AppView' class is the view block. A view block is a code block that can be defined somewhere in src/template/* and then imported somewhere else, typically somewhere in src/template/layout/*. 
 
@@ -172,7 +170,7 @@ As demonstrated, capturing blocks are useful for multiple lines of code. Direct 
 
 However, the fetching part is the same for both cases: you define a thing somewhere and fetch it somewhere else.
 
-#### Elements
+### Elements
 
 another way to get data outside the template is by creating an element. elements are reusable pieces of presentation code that can be shared between different templates. they are located at src/template/element. you can build your own folder structure within this location to better organize the components. example: 
 
@@ -207,9 +205,9 @@ echo $this->form->control('categorias', [
 
 ```
 
-#### helpers
+### helpers
 
-##### form
+#### form
 
 the formhelper is used to create html forms. it automatically renders a given set of input controllers through context.
 
@@ -256,7 +254,7 @@ $this->fetch('scriptBottom');
 
 CakePHP will automatically look for the file in webroot/js/carousel.js.
 
-### the controller layer
+## the controller layer
 
 the **controller layer** handles http requests and send http responses, but first it **delegates tasks to the other two layers**. it waits for petitions from clients, checks their validity according to authentication or authorization rules, delegates data fetching or processing to the model, selects the type of presentation data that the clients are accepting, and finally delegates the rendering process to the view layer. 
 
@@ -319,7 +317,7 @@ public function add()
 
 ```
 
-#### Components
+### Components
 
 Components are reusable and plugable packages. They come in three flavors: built-in core components, downloadable and installable components, and custom components. Components main purpose is to share common logic between controllers, keeping them clean. They are usually loaded via the 'loadComponent()' controller method within a given controller:
 
@@ -382,7 +380,7 @@ This is how the request cycle works in CakePHP:
 
 1. The HttpServer emits the response to the webserver.
 
-### CakePHP Conventions
+## CakePHP Conventions
 
 CakePHP follows the principle "convention over configuration". To follow the framework's conventions, all controller class names must be kept plural, pascal cased, and end with 'Controller', e.g. 'UsersController', 'MenuLinksController'.
 
@@ -414,11 +412,7 @@ Entity class names, on the other hand, are singular, pascal cased and have no su
 
 View templates files are named after the controller functions they display, but are all kept snake cased, e.g. ArticlesController::viewAll() will work with the view template templates/Articles/view_all.php.
 
-### Application
-
-The entry point of the app can be found at /src/Application.php. It provides a common location to configure plugins, middleware, console commands and routes.
-
-### Authentication
+## Authentication
 
 Authentication is the process of verifying a user's identity. According to the official docs, this is the typica authentication workflow:
 
@@ -442,16 +436,14 @@ Authentication is the process of verifying a user's identity. According to the o
 
 1. Add templates.
 
-### Authorization
+## Authorization
 
 Authorization is the process of defining who is allowed to access what. Follows a similar workflow compared to the auth plugin. 
 
 
-### Dependencias do bridfix
+## Access Control List (ACL) -- Older versions only
 
-#### Access Control List (ACL) -- Older versions only
-
-##### Definition
+### Definition
 
 Access Control Lists are a more granular approach to authorization. "The ACL system allows developers to define complex permission structures, enabling fine-tuned control over who can access what within an application. Permissions are typically stored in a database and can be managed through CakePHP's built-in models and console commands".
 
@@ -494,7 +486,7 @@ CREATE TABLE `aros_acos` (
 
 The 'id' is the primary key used to identify a specific row in the 'acos' or 'aros' table. The 'parent_id' references the parent ACO, establishing a hierarchy; 'alias' is the name of the resource (e.g., controller or action). The 'aros_acos' table is an associative table that links both 'acos' and 'aros' in a many to many relationship.
 
-##### Creating ACOs and AROs
+### Creating ACOs and AROs
 
 These tables can be initially created through `bin/cake Migrations.migrations migrate -p Acl`.
 
@@ -520,7 +512,7 @@ For specific rows within the 'acos' table, the plugin simply scans the whole src
 
 The entries are generated through the `bin/cake acl_extras aco_sync` command.
 
-##### Configuring Permissions
+### Configuring Permissions
 
 Permissions are granted or denied through shell commands: 
 
@@ -536,7 +528,7 @@ In this example, members of the group id 1 were grant the permission to everythi
 
 Each command will yield in a new entry in the 'aros_acos' table. Then, inside the app, permissions can be checked through the 'check()' method.
 
-#### Search
+## Search
 
 Creates paginate-able filters for a CakePHP application. Install through composer and then run `bin/cake plugin load Search` to load the plugin in src/Application.php. After that:
 
@@ -576,7 +568,7 @@ public function initialize(array $config): void
 
 ```
 
-### CakePHP AdminLTE Theme
+## CakePHP AdminLTE Theme
 
 CakePHP plugin to integrate the AdminLTE theme into the application, compatible with CakePHP 4.X. It provides a clean an responsive admin interface, leveraging the popular AdminLTE templates.
 
