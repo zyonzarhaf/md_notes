@@ -10,7 +10,7 @@ The application entry point is webroot/index.php. When a request reaches the app
 require dirname(__DIR__) . '/config/requirements.php';
 
 if (PHP_SAPI === 'cli-server') {
-    $_SERVER['PHP_SELF'] = '/' . basename(__FILE__);
+    $_SERVER['PHP_SELF'] = '/' . basename(__FILE__),;
 
     $url = parse_url(urldecode($_SERVER['REQUEST_URI']));
     $file = __DIR__ . $url['path'];
@@ -29,7 +29,7 @@ $server->emit($server->run());
 
 ```
 
-Basically, this guy is using 'basename()', 'dirname()', __FILE__, __DIR__, an instance of the 'Server' class, and an instance of the 'Application' class to:
+The file uses 'basename()', 'dirname()', __FILE__, __DIR__, an instance of the 'Server' class, and an instance of the 'Application' class to:
 
 1. call the autoload routine from the full path to '../vendor/autoload.php', allowing the application to use all the dependencies defined in the composer.json file.
 
@@ -39,15 +39,21 @@ Basically, this guy is using 'basename()', 'dirname()', __FILE__, __DIR__, an in
 
 1. instantiate a server, while also passing in an application instance, which then takes the full path to '../config' directory.
 
-1. call the appropriate 'Server' methods to instantiate a request object (internally, cakephp uses the built-in global variables to achieve this) and a response object.
+1. call the appropriate 'Server' methods to instantiate the request (internally, cakephp uses the built-in global variables to achieve this) and the response objects.
 
 ## The Model Layer
 
-The **Model layer** represents the part of the app that implements the business logic. It is responsible for: **retrieving data, converting data data, validating data, associating data, and other tasks related to handling data.** 
+The **Model layer** represents the part of the app that implements the business logic. It is responsible for: **retrieving data, converting data, validating data, associating data, and other tasks related to handling data.** 
 
-Below is an example of fetching the 'Users' table with the 'fetchTable()' method, and using one of the methods provided by the 'Table' class -- the 'find()' method -- we can also return an instance of the 'Query' class. 
+Below is an example of fetching the 'Users' table with the 'fetchTable()' method, and using one of the methods provided by the 'Table' class -- the 'find()' method -- we can also return an instance of the 'SelectQuery' class. 
 
-By also calling 'all()', we execute the query and effectively retrieve all rows from the 'Users' table as a traversable object -- a 'ResultSetDecorator' object aka 'QueryInterface'. The QueryInterface allows processing data by means of iterating and also by exposing its own methods.
+When it comes to CakePHP ORM, there are two main primary object types that allows working with data:
+
+- Table Objects: represent relations -- collections of data.
+
+- Entities: represent individual records -- rows.
+
+By also calling 'all()', we execute the query and effectively retrieve all rows from the 'Users' table as a traversable object -- a 'ResultSetDecorator' object aka a Collection object. The QueryInterface allows processing data by means of iterating and also by exposing its own methods.
 
 In this example, we simply iterate the collection and call the echo command for each username in a row.
 
@@ -64,6 +70,26 @@ foreach($resultset as $row) {
 }
 
 ```
+
+The 'SelectQuery' object provides various methods to build a query. As long as the query is not executed by calling one of the query execution methods (all(), execute(), first(), toList(), toArray(), or simply by iterating it with 'foreach'), every method call will return the same query. Example:
+
+```php
+<?php
+
+$query = $articles
+    ->find()
+    ->select(['id', 'name']) // Same query
+    // it's also possible to provide aliases to the selected fields: 
+    // select(['pk' => 'id', 'aliased_title' => 'title', 'complete_name' = 'name']);
+    ->where(['id !=' => 1]) // Same query
+    ->orderBy(['created' => 'DESC']); // Same query
+    ->all() // Execute the query
+
+```
+
+However, in some cases when there isn't really a need to filter the results right away, executing the query is not necessary -- you can simply iterate it.
+
+If, however, the query gets executed, several traversing methods will be available to use, such as map(), filter(), reduce(), count(), extract(), combine(). [And many others](https://book.cakephp.org/5/en/core-libraries/collections.html)
 
 Another example would be creating a new user aka writting a new row to the database:
 
@@ -380,7 +406,7 @@ This is how the request cycle works in CakePHP:
 
 1. The HttpServer emits the response to the webserver.
 
-## CakePHP Conventions
+## CakePHP Naming Conventions
 
 CakePHP follows the principle "convention over configuration". To follow the framework's conventions, all controller class names must be kept plural, pascal cased, and end with 'Controller', e.g. 'UsersController', 'MenuLinksController'.
 
@@ -440,14 +466,13 @@ Authentication is the process of verifying a user's identity. According to the o
 
 Authorization is the process of defining who is allowed to access what. Follows a similar workflow compared to the auth plugin. 
 
-
 ## Access Control List (ACL) -- Older versions only
 
 ### Definition
 
-Access Control Lists are a more granular approach to authorization. "The ACL system allows developers to define complex permission structures, enabling fine-tuned control over who can access what within an application. Permissions are typically stored in a database and can be managed through CakePHP's built-in models and console commands".
+Access Control Lists are a more granular approach to authorization. "The ACL system allows developers to define complex permission structures, enabling fine-tuned control over who can access what within an application. Permissions are typically stored in a database and can be managed through CakePHP's built-in models and console commands.
 
-ACLs consist of two main components: acos (Access Control Objects) and 'aros' (Access Request Objects). Both 'acos' and 'aros' objects are stored in the database, and they are linked through an 'aros_acos' joint table. This is what they look like:
+ACLs consist of two main components: 'acos' (Access Control Objects) and 'aros' (Access Request Objects). Both 'acos' and 'aros' objects are stored in the database, and they are linked through an 'aros_acos' joint table. This is what they look like:
 
 ```sql
 
@@ -580,13 +605,21 @@ How to use it:
 
 1. Set the theme in src/Controller/AppController.php.
 
-The typical workflow to integrate the theme into the application is to simply generate all the necessary files through normal `bin/cake bake` commands, and then overwrite them with the `bin/cake bake all <TableNames> --theme AdminLTE` command, where 'TableNames' is the table in the database, pluralized and pascal cased (to follow CakePHP naming convention).
+The typical workflow to integrate the theme into the application is to simply generate all the necessary files through normal `bin/cake bake [whatever you want to bake] [table name]` commands, plus a `--theme AdminLTE`at the end.
 
 ## Console Commands
 
-CakePHP comes with an executable file in the bin directory called 'cake'. This file is used to run console commands. To list out all available commands you run `bin/cake` with no arguments.
+CakePHP comes with an executable file in the bin directory called 'cake'. This file is used to run console commands. To list out all available commands you run `bin/cake` with no arguments. Making the file executable and/or double-checking the database connection are common solutions when troubleshooting the bake command.
 
-After listing out the available commands, usually running `bin/cake [command name] ----help` will print a list of the arguments and options a given command expects.
+After listing out the available commands, usually running `bin/cake [command name] --help` will print a list of the arguments and options a given command expects.
+
+Cake automatically detects commands through a dispatcher-type system that looks for whatever is in 'src/Command/'.
+
+### Bake Console
+
+A huge part of CakePHP console commands is the bake command. Bake can create any of the CakePHP's basic ingredients, and is specially handy to cook MVC skeletons, by simply running: `bin/cake bake [whatever you want to bake] [table name] [options]`.
+
+In CakePHP, you can overwrite the default output of the bake command for a given "ingredient" by using the option '--theme [name of the theme]' at the end of a bake command.
 
 ## Debugging
 
@@ -612,3 +645,5 @@ return [
 ```
 
 By simply calling 'debug()' and passing a variable, CakePHP will be able to render both the template and whatever is in the variable you passed. On the other hand, 'dd()'will render what's in the variable and die, meaning the control flow will simply stop at the line where the method first got called.
+
+
