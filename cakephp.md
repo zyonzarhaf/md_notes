@@ -45,49 +45,56 @@ The file uses 'basename()', 'dirname()', __FILE__, __DIR__, an instance of the '
 
 The **Model layer** represents the part of the app that implements the business logic. It is responsible for: **retrieving data, converting data, validating data, associating data, and other tasks related to handling data.** 
 
-Below is an example of fetching the 'Users' table with the 'fetchTable()' method, and using one of the methods provided by the 'Table' class -- the 'find()' method -- we can also return an instance of the 'SelectQuery' class. 
+Below is an example of fetching the 'Users' table **from within its corresponding controller**, by using the `fetchTable()` method (alternatively, we could use the default table configured for the controller: `$this->TableName`).
 
-When it comes to CakePHP ORM, there are two main primary object types that allows working with data:
+We use one of the methods provided by the 'Table' class -- the `find()` method --, which returns an instance of the SelectQuery class. This class exposes various methods to refine the query and always return itself (therefore it is chainable), unless one of these methods are called at the bottom of the chain:
 
-- Table Objects: represent relations -- collections of data.
+- all()
 
-- Entities: represent individual records -- rows.
+- execute()
 
-By also calling 'all()', we execute the query and effectively retrieve all rows from the 'Users' table as a traversable object -- a 'ResultSetDecorator' object aka a Collection object. The QueryInterface allows processing data by means of iterating and also by exposing its own methods.
+- first(),
 
-In this example, we simply iterate the collection and call the echo command for each username in a row.
+- toList(),
+
+- toArray()
+
+Example code for building a query using `find()`:
 
 ```php
+
+<?php
+
+$query = $this->fetchTable('Users')
+    ->find()
+    ->select(['id', 'username']) // Same query
+    // it's also possible to provide aliases to the selected fields: 
+    // select(['pk' => 'id', 'aliased_title' => 'title', 'complete_name' = 'name']);
+    ->where(['id !=' => 1]) // Same query
+    ->orderBy(['created' => 'DESC']); // Same query
+
+```
+
+However, in order to iterate the result set, we **have** to execute the query. Example:
+
+```php
+
 <?php
 
 use Cake\ORM\Locator\LocatorAwareTrait;
 
-$users = $this->fetchTable('Users');
-$resultset = $users->find()->all();
+$query = $this->fetchTable('Users')
+    ->find()
+    ->select(['id', 'username']) // Same query
+    ->where(['id !=' => 1]) // Same query
+    ->orderBy(['created' => 'DESC']) // Same query
+    ->all() // Execute the query
 
 foreach($resultset as $row) {
     echo $row->username;
 }
 
 ```
-
-The 'SelectQuery' object provides various methods to build a query. As long as the query is not executed by calling one of the query execution methods (all(), execute(), first(), toList(), toArray(), or simply by iterating it with 'foreach'), every method call will return the same query. Example:
-
-```php
-<?php
-
-$query = $articles
-    ->find()
-    ->select(['id', 'name']) // Same query
-    // it's also possible to provide aliases to the selected fields: 
-    // select(['pk' => 'id', 'aliased_title' => 'title', 'complete_name' = 'name']);
-    ->where(['id !=' => 1]) // Same query
-    ->orderBy(['created' => 'DESC']); // Same query
-    ->all() // Execute the query
-
-```
-
-However, in some cases when there isn't really a need to filter the results right away, executing the query is not necessary -- you can simply iterate it.
 
 If, however, the query gets executed, several traversing methods will be available to use, such as map(), filter(), reduce(), count(), extract(), combine(). [And many others](https://book.cakephp.org/5/en/core-libraries/collections.html)
 
@@ -464,7 +471,7 @@ Authentication is the process of verifying a user's identity. According to the o
 
 ## Authorization
 
-Authorization is the process of defining who is allowed to access what. Follows a similar workflow compared to the auth plugin. 
+Authorization is the process of defining who is allowed to access what.
 
 ## Access Control List (ACL) -- Older versions only
 
@@ -646,4 +653,38 @@ return [
 
 By simply calling 'debug()' and passing a variable, CakePHP will be able to render both the template and whatever is in the variable you passed. On the other hand, 'dd()'will render what's in the variable and die, meaning the control flow will simply stop at the line where the method first got called.
 
+```php
+<?php
 
+$configemailstatus = [
+    [
+        "titulomensagem" => '',
+        "descricao" => '',
+        "statuscontrato" => '',
+        "distribuidor_id" => 0,
+        "ativo" => false,
+        "motivo" => ''
+    ],
+    [
+        "titulomensagem" => '',
+        "descricao" => '',
+        "statuscontrato" => '',
+        "distribuidor_id" => 0,
+        "ativo" => false,
+        "motivo" => ''
+    ],
+    [
+        "titulomensagem" => '',
+        "descricao" => '',
+        "statuscontrato" => '',
+        "distribuidor_id" => 0,
+        "ativo" => false,
+        "motivo" => ''
+    ]
+];
+
+$configemailstatusCopia = array_reduce($configemailstatus, function($initial, $item) {
+
+}, []);
+
+```
