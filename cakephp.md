@@ -277,7 +277,6 @@ This helper also ties into view blocks by providing the 'script()', 'css()', and
 <?php
 
 // in src/template/Articles/index.php
-
 $this->Html->script('carousel', ['block' => 'scriptBottom']);
 
 // Somewhere in src/template/layout
